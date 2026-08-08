@@ -1,0 +1,29 @@
+services:
+  web:
+    build: .
+    container_name: jelajah-web
+    restart: unless-stopped
+    expose:
+      - "8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DB_PATH=/app/data/portal.db
+      - ADMIN_API_KEY=${ADMIN_API_KEY:-}
+    healthcheck:
+      test: ["CMD","python","-c","import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/stats').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: jelajah-nginx
+    restart: unless-stopped
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro

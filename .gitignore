@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+data/
+portal.db
+*.log
+*.pid
+nginx/certs/*.pem
+nginx/certs/*.key
+*.pem
+*.key
+.env
+.env.*
+.DS_Store
+*.bak

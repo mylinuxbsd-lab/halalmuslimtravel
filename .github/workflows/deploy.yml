@@ -1,0 +1,29 @@
+name: Deploy to Debian server
+on:
+  push: { branches: [ main ] }
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependency vulnerability scan
+        run: pip install pip-audit && pip-audit -r requirements.txt || true
+      - name: Copy files to server
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avzr --delete --exclude 'data' --exclude 'nginx/certs' --exclude '.git'
+          path: ./
+          remote_path: ~/jelajah/
+          remote_host: ${{ secrets.SSH_HOST }}
+          remote_user: ${{ secrets.SSH_USER }}
+          remote_port: ${{ secrets.SSH_PORT }}
+          remote_key: ${{ secrets.SSH_KEY }}
+      - name: Rebuild on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: cd ~/jelajah && docker compose up -d --build

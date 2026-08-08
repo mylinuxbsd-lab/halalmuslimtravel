@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jelajah Halal | Malaysia Muslim-Friendly Tourism Portal</title>
+<meta name="description" content="Full-stack Muslim-friendly tourism portal for Malaysia.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header class="nav">
+  <div class="container nav-inner">
+    <div class="logo"><span class="mark">🕌</span> Jelajah&nbsp;Halal</div>
+    <nav class="nav-links" id="navLinks">
+      <a href="#mosques">Mosques</a><a href="#food">Food</a><a href="#attractions">Attractions</a>
+      <a href="#tools">Prayer &amp; Qibla</a><a href="#map-section">Map</a><a href="#medical">Medical</a>
+      <a href="#hotels">Stays</a><a href="#itinerary">Itineraries</a><a href="#reviews">Reviews</a><a href="#contact">Contact</a>
+    </nav>
+    <div class="nav-tools">
+      <span class="api-badge" id="apiBadge">API …</span>
+      <select class="lang" id="langSel" title="Language"><option value="en">EN</option><option value="ms">BM</option><option value="ar">AR</option><option value="zh">中文</option></select>
+      <button class="icon-btn" id="themeBtn" title="Toggle theme">🌙</button>
+      <button class="icon-btn hamburger" id="hamburger" title="Menu">☰</button>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="container hero-content">
+    <h1>Discover Malaysia, the Halal Way</h1>
+    <p id="heroTag">Your Muslim-friendly gateway to Malaysia</p>
+    <div class="search-box">
+      <input id="globalSearch" type="text" placeholder="Search mosques, food, attractions…" autocomplete="off">
+      <button id="searchBtn">Search</button>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="hero-stats">
+      <div><b id="statMosques">12+</b><span>Iconic Mosques</span></div>
+      <div><b id="statAttr">19+</b><span>Attractions</span></div>
+      <div><b>3</b><span>JCI Hospitals</span></div>
+      <div><b>4</b><span>Languages</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="mosques"><div class="container">
+  <div class="section-head"><div class="eyebrow">Islamic Heritage &amp; Spiritual Tourism</div><h2>Iconic Mosques &amp; Spiritual Hubs</h2><p>Live from the database — hours, dress code, distances, directions.</p></div>
+  <div class="grid cols-3" id="mosqueGrid"><p class="loading">Loading…</p></div>
+</div></section>
+
+<section class="block" id="food" style="background:rgba(10,107,75,.03)"><div class="container">
+  <div class="section-head"><div class="eyebrow">Taste of Malaysia</div><h2>Halal Gastronomy &amp; Culinary Guide</h2><p>Signature dishes plus night markets &amp; fine-dining spots.</p></div>
+  <div class="grid cols-3" id="foodGrid"><p class="loading">Loading…</p></div>
+  <h3 style="margin:26px 0 14px">Night Markets &amp; Dining</h3><div class="grid cols-4" id="marketGrid"></div>
+</div></section>
+
+<section class="block" id="attractions"><div class="container">
+  <div class="section-head"><div class="eyebrow">Sightseeing · Theme Parks · Family</div><h2>Attractions &amp; Adventures</h2><p>Filter by category — the server returns matching results.</p></div>
+  <div class="pills" id="attrPills"></div><div class="grid cols-3" id="attrGrid"><p class="loading">Loading…</p></div>
+</div></section>
+
+<section class="block" id="tools" style="background:rgba(10,107,75,.03)"><div class="container">
+  <div class="section-head"><div class="eyebrow">Smart Islamic Tools</div><h2>Live Prayer Times &amp; Qibla</h2><p>Computed server-side with real astronomical math (JAKIM angles).</p></div>
+  <div class="tools-grid">
+    <div class="tool-card"><h3>🕐 Prayer Time Calculator</h3><div class="field"><label for="citySel">City:</label><select id="citySel"></select></div><div class="prayer-times" id="prayerTimes"></div><p class="qibla-info" id="ptNote" style="margin-top:12px"></p></div>
+    <div class="tool-card"><h3>🧭 Qibla Compass</h3><div class="field"><label for="qiblaCity">From:</label><select id="qiblaCity"></select></div><div class="compass"><span class="cn">N</span><span class="cs">S</span><div class="needle" id="needle"></div></div><p class="qibla-info" id="qiblaInfo"></p></div>
+  </div>
+</div></section>
+
+<section class="block" id="map-section"><div class="container">
+  <div class="section-head"><div class="eyebrow">Interactive Mapping</div><h2>Explore on the Map</h2><p>All points loaded live from the API with distances from KLCC.</p></div>
+  <div class="pills" id="mapFilter"></div><div id="map"></div>
+</div></section>
+
+<section class="block" id="medical" style="background:rgba(10,107,75,.03)"><div class="container">
+  <div class="section-head"><div class="eyebrow">Medical &amp; Wellness Tourism</div><h2>JCI-Accredited Healthcare</h2><p>Premier hospitals with prayer facilities.</p></div>
+  <div class="grid cols-3" id="medGrid"></div>
+</div></section>
+
+<section class="block" id="hotels"><div class="container">
+  <div class="section-head"><div class="eyebrow">Accommodation</div><h2>Halal-Friendly Stays</h2><p>Filtered by Halal breakfast, Qibla markers, prayer mats.</p></div>
+  <div class="grid cols-3" id="hotelGrid"></div>
+</div></section>
+
+<section class="block" id="transport" style="background:rgba(10,107,75,.03)"><div class="container">
+  <div class="section-head"><div class="eyebrow">Getting Around</div><h2>Transport &amp; Essential Apps</h2><p>Rail, ride-hailing and the digital toolkit you'll need.</p></div>
+  <div class="grid cols-3" id="transportGrid" style="margin-bottom:18px"></div><div class="grid cols-3" id="appsGrid"></div>
+</div></section>
+
+<section class="block" id="itinerary"><div class="container">
+  <div class="section-head"><div class="eyebrow">Smart Itinerary Planner</div><h2>Plan Your Perfect Trip</h2><p>Pick a ready-made plan, or build your own and save it to the server.</p></div>
+  <div class="field"><label for="itinSel">Pre-built plan:</label><select id="itinSel"><option value="3">3-Day Essential</option><option value="5">5-Day Family</option><option value="7">7-Day Grand Tour</option></select></div>
+  <div class="itin-days" id="itinDays" style="margin-bottom:34px"></div>
+  <h3 style="margin-bottom:14px">🧳 Custom Trip Builder</h3>
+  <div class="builder"><div class="pool" id="pool"><h4>Available Spots</h4></div><div class="plan" id="plan"><h4>My Trip <a href="#" id="clearPlan" class="empty-note">Clear</a></h4></div></div>
+  <div class="field" style="margin-top:14px"><input id="tripName" type="text" placeholder="Name your trip (e.g. Family Week in KL)"><button class="btn" id="saveTrip">💾 Save Trip</button></div>
+  <h4 style="margin:22px 0 10px">Saved Trips (persisted in database)</h4><div class="saved-list" id="savedList"></div>
+</div></section>
+
+<section class="block" id="reviews" style="background:rgba(10,107,75,.03)"><div class="container">
+  <div class="section-head"><div class="eyebrow">Community</div><h2>Traveler Reviews</h2><p>Real reviews stored in the database — add your own from any card.</p></div>
+  <div class="grid cols-3" id="reviewGrid"></div>
+</div></section>
+
+<section class="block" id="practical"><div class="container">
+  <div class="section-head"><div class="eyebrow">Traveler Support Hub</div><h2>Practical Travel Information</h2><p>Everything you need to know before you go.</p></div>
+  <div id="practicalAcc" style="max-width:820px"></div>
+</div></section>
+
+<section class="block" id="contact" style="background:rgba(10,107,75,.03)"><div class="container">
+  <div class="section-head"><div class="eyebrow">Traveler Support</div><h2>Enquiry / Booking Request</h2><p>Submit a question — it's saved to the backend with a reference number.</p></div>
+  <form id="enqForm" class="tool-card" style="max-width:720px">
+    <div class="form-grid">
+      <input id="enqName" placeholder="Your name" required><input id="enqEmail" type="email" placeholder="Email" required>
+      <input id="enqSubject" class="full" placeholder="Subject (e.g. 5-day family package)" required>
+      <textarea id="enqMessage" class="full" rows="4" placeholder="Your message…" required></textarea>
+    </div>
+    <div style="margin-top:14px"><button class="btn" type="submit">Send Enquiry</button><span class="form-note" id="enqNote"></span></div>
+  </form>
+</div></section>
+
+<section class="block" id="roadmap"><div class="container">
+  <div class="section-head"><div class="eyebrow">Delivery Plan</div><h2>Phased Implementation Roadmap</h2></div>
+  <div class="roadmap">
+    <div class="phase"><div class="num">PHASE 1</div><h3>Core Portal &amp; Database</h3><p>Directories, mapping, live API + SQLite. <b>✅ Delivered.</b></p></div>
+    <div class="phase"><div class="num">PHASE 2</div><h3>Smart Features</h3><p>Prayer/Qibla engine, saveable itineraries, reviews, enquiries. <b>✅ Delivered.</b></p></div>
+    <div class="phase"><div class="num">PHASE 3</div><h3>Partnerships &amp; Booking</h3><p>Live hotel booking engines, payment gateway, JAKIM halal-cert sync.</p></div>
+  </div>
+</div></section>
+
+<footer><div class="container">
+  <div class="foot-grid">
+    <div><div class="logo" style="margin-bottom:10px"><span class="mark">🕌</span> Jelajah&nbsp;Halal</div><p style="color:var(--muted);max-width:340px;font-size:.9rem">A full-stack Muslim-friendly tourism portal for Malaysia. FastAPI + SQLite with a live REST API.</p></div>
+    <div><h4>Explore</h4><a href="#mosques">Mosques</a><a href="#food">Halal Food</a><a href="#attractions">Attractions</a><a href="#itinerary">Itineraries</a></div>
+    <div><h4>Support</h4><a href="#practical">Travel Info</a><a href="#tools">Prayer Times</a><a href="#contact">Contact</a><a href="/docs" target="_blank">API Docs ↗</a></div>
+  </div>
+  <div class="foot-bottom">© 2026 Jelajah Halal · Full-stack build · Data illustrative. Halal status to be verified via JAKIM APIs in production.</div>
+</div></footer>
+
+<div class="modal-bg" id="reviewModal"><div class="modal">
+  <h3 id="revModalTitle">Add a Review</h3><input type="hidden" id="revPlace">
+  <div class="stars-input" id="starsInput"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+  <div class="form-grid"><input id="revAuthor" class="full" placeholder="Your name"><textarea id="revComment" class="full" rows="3" placeholder="Share your experience…"></textarea></div>
+  <div style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end"><button class="btn ghost" id="revCancel">Cancel</button><button class="btn" id="revSubmit">Post Review</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>

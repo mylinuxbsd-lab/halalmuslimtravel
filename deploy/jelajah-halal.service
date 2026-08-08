@@ -1,0 +1,16 @@
+[Unit]
+Description=Jelajah Halal Portal
+After=network.target
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/jelajah-halal
+Environment=DB_PATH=/opt/jelajah-halal/data/portal.db
+ExecStartPre=/opt/jelajah-halal/venv/bin/python db.py
+ExecStart=/opt/jelajah-halal/venv/bin/gunicorn app:app --workers 3 --worker-class uvicorn.workers.UvicornWorker --bind 127.0.0.1:8000 --timeout 60
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target
