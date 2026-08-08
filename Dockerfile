@@ -10,4 +10,4 @@ USER appuser
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/stats').status==200 else 1)"
-CMD ["gunicorn","app:app","--workers","3","--worker-class","uvicorn.workers.UvicornWorker","--bind","0.0.0.0:8000","--timeout","60"]
+CMD ["gunicorn","app:app","--preload","--workers","3","--worker-class","uvicorn.workers.UvicornWorker","--bind","0.0.0.0:8000","--timeout","60"]
