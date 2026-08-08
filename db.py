@@ -20,9 +20,9 @@ def init_db(force=False):
     conn = get_conn()
     c = conn.cursor()
     c.executescript("""
-    CREATE TABLE IF NOT EXISTS mosques(id INTEGER PRIMARY KEY, name TEXT, description TEXT, photo_url TEXT, maps_url TEXT, state TEXT, distance TEXT, travel_time TEXT, lat REAL, lng REAL);
-    CREATE TABLE IF NOT EXISTS attractions(id INTEGER PRIMARY KEY, category TEXT, name TEXT, description TEXT, photo_url TEXT, maps_url TEXT, state TEXT, distance TEXT, travel_time TEXT, lat REAL, lng REAL);
-    CREATE TABLE IF NOT EXISTS food(id INTEGER PRIMARY KEY, name TEXT, description TEXT, photo_url TEXT);
+    CREATE TABLE IF NOT EXISTS mosques(id INTEGER PRIMARY KEY, name TEXT, description TEXT, photo_url TEXT, maps_url TEXT, state TEXT, distance TEXT, travel_time TEXT, lat REAL, lng REAL, photo_thumb TEXT);
+    CREATE TABLE IF NOT EXISTS attractions(id INTEGER PRIMARY KEY, category TEXT, name TEXT, description TEXT, photo_url TEXT, maps_url TEXT, state TEXT, distance TEXT, travel_time TEXT, lat REAL, lng REAL, photo_thumb TEXT);
+    CREATE TABLE IF NOT EXISTS food(id INTEGER PRIMARY KEY, name TEXT, description TEXT, photo_url TEXT, photo_thumb TEXT);
     CREATE TABLE IF NOT EXISTS cartoons(id INTEGER PRIMARY KEY, name TEXT, description TEXT, link TEXT);
     CREATE TABLE IF NOT EXISTS medical(id INTEGER PRIMARY KEY, name TEXT, description TEXT, specialties TEXT, website TEXT, maps_url TEXT, state TEXT, distance TEXT, travel_time TEXT, lat REAL, lng REAL);
     CREATE TABLE IF NOT EXISTS accommodation(id INTEGER PRIMARY KEY, name TEXT, category TEXT, description TEXT, website TEXT, maps_url TEXT, state TEXT, distance TEXT, lat REAL, lng REAL);
@@ -36,9 +36,9 @@ def init_db(force=False):
     """)
 
     if c.execute("SELECT COUNT(*) FROM mosques").fetchone()[0] == 0:
-        c.executemany("INSERT INTO mosques(name,description,photo_url,maps_url,state,distance,travel_time,lat,lng) VALUES(?,?,?,?,?,?,?,?,?)", S.MOSQUES)
-        c.executemany("INSERT INTO attractions(category,name,description,photo_url,maps_url,state,distance,travel_time,lat,lng) VALUES(?,?,?,?,?,?,?,?,?,?)", S.ATTRACTIONS)
-        c.executemany("INSERT INTO food(name,description,photo_url) VALUES(?,?,?)", S.FOOD)
+        c.executemany("INSERT INTO mosques(name,description,photo_url,maps_url,state,distance,travel_time,lat,lng,photo_thumb) VALUES(?,?,?,?,?,?,?,?,?,?)", S.MOSQUES)
+        c.executemany("INSERT INTO attractions(category,name,description,photo_url,maps_url,state,distance,travel_time,lat,lng,photo_thumb) VALUES(?,?,?,?,?,?,?,?,?,?,?)", S.ATTRACTIONS)
+        c.executemany("INSERT INTO food(name,description,photo_url,photo_thumb) VALUES(?,?,?,?)", S.FOOD)
         c.executemany("INSERT INTO cartoons(name,description,link) VALUES(?,?,?)", S.CARTOONS)
         c.executemany("INSERT INTO medical(name,description,specialties,website,maps_url,state,distance,travel_time,lat,lng) VALUES(?,?,?,?,?,?,?,?,?,?)", S.MEDICAL)
         c.executemany("INSERT INTO accommodation(name,category,description,website,maps_url,state,distance,lat,lng) VALUES(?,?,?,?,?,?,?,?,?)", S.ACCOMMODATION)

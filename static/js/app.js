@@ -45,22 +45,25 @@ async function checkHealth() {
   } catch { $("#apiBadge").textContent = "API ○ offline"; $("#apiBadge").classList.add("off"); }
 }
 
-function linkRow(mapsUrl, photoUrl, mapsLabel, photoLabel) {
+function linkRow(mapsUrl, photoUrl, mapsLabel, photoLabel, videoName) {
   const links = [];
   if (mapsUrl) links.push(`<a class="map-link" target="_blank" href="${mapsUrl}">📍 ${mapsLabel}</a>`);
   if (photoUrl) links.push(`<a class="map-link" target="_blank" href="${photoUrl}">🔗 ${photoLabel}</a>`);
+  if (videoName) links.push(`<a class="map-link" target="_blank" href="https://www.youtube.com/results?search_query=${encodeURIComponent(videoName + " Malaysia")}">▶️ Watch</a>`);
   return links.length ? `<div class="tag-row">${links.join("")}</div>` : "";
 }
+const cardImg = (thumb, name) => thumb ? `<img class="card-img" src="${thumb}" alt="${name}" loading="lazy" onerror="this.remove()">` : "";
 
 async function loadMosques() {
   const g = $("#mosqueGrid");
   try {
     const rows = await api("/api/mosques"); g.innerHTML = "";
     rows.forEach(m => g.appendChild(el("div", "card", `
+      ${cardImg(m.photo_thumb, m.name)}
       <div class="tag-row"><span class="chip">🕌 ${m.state}</span></div>
       <h3>${m.name}</h3><p class="desc">${trunc(m.description, 220)}</p>
       <p class="dist">${m.distance}${m.travel_time ? " · " + m.travel_time : ""}</p>
-      ${linkRow(m.maps_url, m.photo_url, "Directions", "Official Site")}
+      ${linkRow(m.maps_url, m.photo_url, "Directions", "Official Site", m.name)}
       <div><button class="rev-btn" data-place="${m.name}">⭐ Review</button></div>`)));
     wireReviewButtons();
   } catch { g.innerHTML = '<p class="loading">Could not load mosques.</p>'; }
@@ -71,9 +74,10 @@ async function loadFood() {
     const dishes = await api("/api/food");
     const fg = $("#foodGrid"); fg.innerHTML = "";
     dishes.forEach(f => fg.appendChild(el("div", "card", `
+      ${cardImg(f.photo_thumb, f.name)}
       <div class="tag-row"><span class="chip">✅ Halal</span></div>
       <h3>${f.name}</h3><p class="desc">${trunc(f.description, 220)}</p>
-      ${linkRow(null, f.photo_url, "", "Learn More")}`)));
+      ${linkRow(null, f.photo_url, "", "Learn More", f.name)}`)));
   } catch { $("#foodGrid").innerHTML = '<p class="loading">Could not load food.</p>'; }
 }
 
@@ -101,10 +105,11 @@ async function loadAttractions() {
     const rows = await api("/api/attractions?category=" + encodeURIComponent(category));
     g.innerHTML = "";
     rows.forEach(a => g.appendChild(el("div", "card", `
+      ${cardImg(a.photo_thumb, a.name)}
       <div class="tag-row"><span class="chip">${a.category}</span>${a.state ? `<span class="chip">📍 ${a.state}</span>` : ""}</div>
       <h3>${a.name}</h3><p class="desc">${trunc(a.description, 200)}</p>
       <p class="dist">${a.distance}${a.travel_time ? " · " + a.travel_time : ""}</p>
-      ${linkRow(a.maps_url, a.photo_url, "Directions", "More Info")}
+      ${linkRow(a.maps_url, a.photo_url, "Directions", "More Info", a.name)}
       <div><button class="rev-btn" data-place="${a.name}">⭐ Review</button></div>`)));
     wireReviewButtons();
   }
