@@ -8,7 +8,7 @@ case "$MODE" in
     command -v docker >/dev/null || { echo "Install Docker first: curl -fsSL https://get.docker.com | sh"; exit 1; }
     sed -i.bak "s/YOUR_DOMAIN/${DOMAIN}/g" nginx/nginx.conf && rm -f nginx/nginx.conf.bak
     gen; mkdir -p data
-    docker compose up -d --build; sleep 6; docker compose ps
+    docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build; sleep 6; docker compose ps
     echo "==> https://${DOMAIN}/  (self-signed until you run ./setup-ssl.sh)";;
   local)
     pip install -q -r requirements.txt 2>/dev/null || true

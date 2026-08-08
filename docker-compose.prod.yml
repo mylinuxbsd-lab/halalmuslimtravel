@@ -1,0 +1,29 @@
+# Production override — fully independent deployment behind a shared SNI edge router.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Neither `web` nor `nginx` here ever shares a container, config file, or cert with
+# any other site on the host. The only shared thing is the `edge` docker network,
+# which a separate top-level router uses to reach this nginx by container name and
+# pass TLS straight through (SNI-based, no termination) — this stack terminates its
+# own TLS with its own Let's Encrypt cert and never touches another site's config.
+services:
+  web:
+    restart: unless-stopped
+    networks:
+      - internal
+
+  nginx:
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    networks:
+      - internal
+      - edge
+
+networks:
+  internal:
+    name: jelajah_internal
+  edge:
+    name: edge
+    external: true
