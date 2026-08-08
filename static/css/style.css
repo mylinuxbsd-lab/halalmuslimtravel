@@ -90,6 +90,10 @@ section.block{padding:54px 0}
 .day-card .daynum{background:var(--brand);color:#fff;border-radius:8px;padding:2px 10px;font-weight:700;font-size:.8rem;display:inline-block;margin-bottom:8px}
 .day-card ul{margin:8px 0 0;padding-left:18px}
 .day-card li{margin-bottom:5px;font-size:.9rem}
+.activity-item{padding:10px 0;border-top:1px solid var(--border)}
+.activity-item:first-of-type{border-top:0;padding-top:0}
+.practical-group-head{margin:26px 0 12px}
+.practical-group-head:first-child{margin-top:0}
 .builder{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .pool,.plan{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);min-height:220px}
 .pool h4,.plan h4{margin:0 0 10px;display:flex;justify-content:space-between;align-items:center}

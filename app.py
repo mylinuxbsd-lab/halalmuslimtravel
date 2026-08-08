@@ -27,7 +27,7 @@ db.init_db()
 
 app = FastAPI(title="Jelajah Halal API",
               description="Backend for the Malaysia Muslim-Friendly Tourism Portal.",
-              version="1.0.0")
+              version="2.0.0")
 
 # ---- Admin auth for endpoints that expose stored user data (PII) ----
 ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY")  # set in .env; if unset, PII reads are disabled
@@ -37,24 +37,16 @@ def require_admin(x_api_key: str = Header(default="")):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 # ---- SQL identifier allow-lists (identifiers can't be parameterised) ----
-_ALLOWED_TABLES = {"mosques", "food", "venues", "attractions", "medical", "hotels",
+_ALLOWED_TABLES = {"mosques", "attractions", "food", "cartoons", "medical", "accommodation",
                    "transport", "apps", "practical", "reviews", "enquiries"}
-_ALLOWED_ORDER = {"id", "id DESC", "city", "name"}
-
-
-def enrich(row: dict):
-    if "lat" in row and "lng" in row and row["lat"] is not None:
-        row["distance"] = db.dist_label(row["lat"], row["lng"])
-        row["distance_km"] = round(db.dist_km(row["lat"], row["lng"]), 1)
-        row["maps_url"] = f"https://www.google.com/maps/dir/?api=1&destination={row['lat']},{row['lng']}"
-    return row
+_ALLOWED_ORDER = {"id", "id DESC", "name"}
 
 
 def fetch(table, order="id"):
     if table not in _ALLOWED_TABLES or order not in _ALLOWED_ORDER:
         raise ValueError("Illegal table/order")
     conn = db.get_conn()
-    rows = [enrich(dict(r)) for r in conn.execute(f"SELECT * FROM {table} ORDER BY {order}")]
+    rows = [dict(r) for r in conn.execute(f"SELECT * FROM {table} ORDER BY {order}")]
     conn.close()
     return rows
 
@@ -62,70 +54,70 @@ def fetch(table, order="id"):
 # ---------- catalogue endpoints ----------
 @app.get("/api/mosques")
 def mosques():
-    return fetch("mosques", "city")
-
-
-@app.get("/api/food")
-def food():
-    conn = db.get_conn()
-    dishes = [dict(r) for r in conn.execute("SELECT * FROM food")]
-    venues = [enrich(dict(r)) for r in conn.execute("SELECT * FROM venues")]
-    conn.close()
-    return {"dishes": dishes, "venues": venues}
+    return fetch("mosques", "name")
 
 
 @app.get("/api/attractions")
-def attractions(group: Optional[str] = None):
+def attractions(category: Optional[str] = None):
     conn = db.get_conn()
-    if group and group != "All":
-        rows = conn.execute("SELECT * FROM attractions WHERE grp=?", (group,))
+    if category and category != "All":
+        rows = conn.execute("SELECT * FROM attractions WHERE category=? ORDER BY name", (category,))
     else:
-        rows = conn.execute("SELECT * FROM attractions")
-    out = [enrich(dict(r)) for r in rows]
+        rows = conn.execute("SELECT * FROM attractions ORDER BY name")
+    out = [dict(r) for r in rows]
     conn.close()
     return out
 
 
+@app.get("/api/attractions/categories")
+def attraction_categories():
+    conn = db.get_conn()
+    rows = conn.execute("SELECT DISTINCT category FROM attractions ORDER BY category").fetchall()
+    conn.close()
+    return [r["category"] for r in rows]
+
+
+@app.get("/api/food")
+def food():
+    return fetch("food", "name")
+
+
+@app.get("/api/cartoons")
+def cartoons():
+    return fetch("cartoons", "name")
+
+
 @app.get("/api/medical")
 def medical():
-    return fetch("medical")
+    return fetch("medical", "name")
 
 
-@app.get("/api/hotels")
-def hotels():
-    rows = fetch("hotels")
-    for r in rows:
-        r["perks"] = r["perks"].split("|")
-    return rows
+@app.get("/api/accommodation")
+def accommodation():
+    return fetch("accommodation", "name")
 
 
 @app.get("/api/transport")
 def transport():
-    return fetch("transport")
+    return fetch("transport", "id")
 
 
 @app.get("/api/apps")
 def apps():
-    grouped = {}
-    for r in fetch("apps"):
-        grouped.setdefault(r["category"], []).append(r["name"])
-    return grouped
+    return fetch("apps", "id")
 
 
 @app.get("/api/practical")
 def practical():
-    return fetch("practical")
+    return fetch("practical", "id")
 
 
 # ---------- prayer & qibla ----------
-CITY_COORDS = {m[1]: (m[2], m[3]) for m in S.MOSQUES}
-
-
 @app.get("/api/prayer-times")
 def prayer_times(city: str = "Kuala Lumpur", date: Optional[str] = None):
-    if city not in CITY_COORDS:
+    if city not in S.CITY_COORDS:
         raise HTTPException(404, f"Unknown city '{city}'.")
-    lat, lng = CITY_COORDS[city]
+    lat, lng = S.CITY_COORDS[city]
     d = datetime.date.today()
     if date:
         try:
@@ -133,21 +125,21 @@ def prayer_times(city: str = "Kuala Lumpur", date: Optional[str] = None):
         except ValueError:
             raise HTTPException(400, "date must be YYYY-MM-DD")
     return {"city": city, "date": d.isoformat(),
-            "method": "JAKIM (Fajr 20\u00b0, Isha 18\u00b0)",
+            "method": "JAKIM (Fajr 20°, Isha 18°)",
             "times": prayer.prayer_times(lat, lng, d)}
 
 
 @app.get("/api/qibla")
 def qibla(city: str = "Kuala Lumpur"):
-    if city not in CITY_COORDS:
+    if city not in S.CITY_COORDS:
         raise HTTPException(404, f"Unknown city '{city}'.")
-    lat, lng = CITY_COORDS[city]
+    lat, lng = S.CITY_COORDS[city]
     return {"city": city, "bearing": round(prayer.qibla_bearing(lat, lng), 1)}
 
 
 @app.get("/api/cities")
 def cities():
-    return sorted(CITY_COORDS.keys())
+    return sorted(S.CITY_COORDS.keys())
 
 
 # ---------- search ----------
@@ -157,32 +149,42 @@ def search(q: str = Query(..., min_length=1, max_length=80)):
     conn = db.get_conn()
     results = []
     q_tables = [
-        ("mosque", "SELECT name, city FROM mosques WHERE lower(name) LIKE ? OR lower(city) LIKE ?"),
-        ("dish", "SELECT name, tag FROM food WHERE lower(name) LIKE ? OR lower(tag) LIKE ?"),
-        ("venue", "SELECT name, type FROM venues WHERE lower(name) LIKE ? OR lower(type) LIKE ?"),
-        ("attraction", "SELECT name, grp FROM attractions WHERE lower(name) LIKE ? OR lower(grp) LIKE ?"),
-        ("hospital", "SELECT name, specialty FROM medical WHERE lower(name) LIKE ? OR lower(specialty) LIKE ?"),
-        ("hotel", "SELECT name, perks FROM hotels WHERE lower(name) LIKE ? OR lower(perks) LIKE ?"),
+        ("mosque", "SELECT name, state FROM mosques WHERE lower(name) LIKE ? OR lower(state) LIKE ?"),
+        ("dish", "SELECT name, description FROM food WHERE lower(name) LIKE ? OR lower(description) LIKE ?"),
+        ("attraction", "SELECT name, category FROM attractions WHERE lower(name) LIKE ? OR lower(category) LIKE ?"),
+        ("hospital", "SELECT name, specialties FROM medical WHERE lower(name) LIKE ? OR lower(specialties) LIKE ?"),
+        ("stay", "SELECT name, category FROM accommodation WHERE lower(name) LIKE ? OR lower(category) LIKE ?"),
     ]
     for kind, sql in q_tables:
         for r in conn.execute(sql, (ql, ql)):
             d = dict(r)
-            results.append({"type": kind, "name": d["name"], "detail": list(d.values())[1]})
+            detail = list(d.values())[1] or ""
+            results.append({"type": kind, "name": d["name"], "detail": (detail[:80] + "…") if len(detail) > 80 else detail})
     conn.close()
     return {"query": q, "count": len(results), "results": results}
 
 
 # ---------- prebuilt itineraries ----------
+_DURATION_CUTOFF = {"1 Week": 7, "2 Weeks": 14, "3 Weeks": 21, "1 Month": 30}
+
+
 @app.get("/api/itineraries/prebuilt")
-def prebuilt(days: str = "3"):
+def prebuilt(duration: str = "1 Week"):
+    cutoff = _DURATION_CUTOFF.get(duration)
+    if cutoff is None:
+        raise HTTPException(404, "No such plan. Try '1 Week', '2 Weeks', '3 Weeks' or '1 Month'.")
     conn = db.get_conn()
     rows = conn.execute(
-        "SELECT day_no, title, items FROM prebuilt_itineraries WHERE days=? ORDER BY day_no",
-        (days,)).fetchall()
+        "SELECT day_no, activity, location, type, why, tips FROM itinerary_items WHERE day_no<=? ORDER BY day_no, id",
+        (cutoff,)).fetchall()
     conn.close()
-    if not rows:
-        raise HTTPException(404, "No such plan. Try 3, 5 or 7.")
-    return [{"day": r["day_no"], "title": r["title"], "items": json.loads(r["items"])} for r in rows]
+    days = {}
+    for r in rows:
+        days.setdefault(r["day_no"], []).append({
+            "activity": r["activity"], "location": r["location"], "type": r["type"],
+            "why": r["why"], "tips": r["tips"],
+        })
+    return [{"day": day_no, "items": items} for day_no, items in sorted(days.items())]
 
 
 # ---------- saved (custom) itineraries ----------
@@ -282,7 +284,7 @@ def list_reviews():
 def stats():
     conn = db.get_conn()
     def n(t): return conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
-    out = {t: n(t) for t in ["mosques", "attractions", "medical", "hotels",
+    out = {t: n(t) for t in ["mosques", "attractions", "food", "medical", "accommodation",
                              "saved_itineraries", "enquiries", "reviews"]}
     conn.close()
     return out

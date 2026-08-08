@@ -15,8 +15,13 @@ sudo ./setup-ssl.sh HalalMuslimTravel.com you@email.com   # real Let's Encrypt c
 ```
 
 ## Features
-Mosques · Halal food · Attractions · Live prayer times & Qibla · Interactive map ·
-Search · Saveable itineraries · Reviews · Enquiry form · Dark mode · 4 languages.
+Mosques & Islamic activities · Halal food · Attractions (Places to Visit, Shopping Malls,
+Theme Parks, For Children, Outdoor Adventures, Beaches & Islands, Night Markets, Day Trips) ·
+Malaysian kids' cartoons · Medical tourism · Accommodation · Transport & apps guide ·
+Live prayer times & Qibla · Interactive map · Search · Cumulative 1-Week/2-Week/3-Week/1-Month
+itineraries · Saveable custom itineraries · Reviews · Enquiry form · Dark mode · 4 languages.
+
+Dataset sourced from "Places to visit in Malaysia updated Aug 2026.xlsx".
 
 ## Security hardening applied
 - SQL identifier allow-list in `fetch()`

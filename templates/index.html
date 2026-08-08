@@ -40,7 +40,7 @@
     <div class="hero-stats">
       <div><b id="statMosques">12+</b><span>Iconic Mosques</span></div>
       <div><b id="statAttr">19+</b><span>Attractions</span></div>
-      <div><b>3</b><span>JCI Hospitals</span></div>
+      <div><b id="statMed">3</b><span>Healthcare Options</span></div>
       <div><b>4</b><span>Languages</span></div>
     </div>
   </div>
@@ -52,14 +52,14 @@
 </div></section>
 
 <section class="block" id="food" style="background:rgba(10,107,75,.03)"><div class="container">
-  <div class="section-head"><div class="eyebrow">Taste of Malaysia</div><h2>Halal Gastronomy &amp; Culinary Guide</h2><p>Signature dishes plus night markets &amp; fine-dining spots.</p></div>
+  <div class="section-head"><div class="eyebrow">Taste of Malaysia</div><h2>Halal Gastronomy &amp; Culinary Guide</h2><p>Signature dishes from across Malaysia — all halal.</p></div>
   <div class="grid cols-3" id="foodGrid"><p class="loading">Loading…</p></div>
-  <h3 style="margin:26px 0 14px">Night Markets &amp; Dining</h3><div class="grid cols-4" id="marketGrid"></div>
 </div></section>
 
 <section class="block" id="attractions"><div class="container">
-  <div class="section-head"><div class="eyebrow">Sightseeing · Theme Parks · Family</div><h2>Attractions &amp; Adventures</h2><p>Filter by category — the server returns matching results.</p></div>
+  <div class="section-head"><div class="eyebrow">Sightseeing · Shopping · Theme Parks · Family</div><h2>Attractions &amp; Adventures</h2><p>Filter by category — the server returns matching results.</p></div>
   <div class="pills" id="attrPills"></div><div class="grid cols-3" id="attrGrid"><p class="loading">Loading…</p></div>
+  <h3 style="margin:26px 0 14px">🎬 Malaysian Kids' Shows</h3><div class="grid cols-3" id="cartoonGrid"></div>
 </div></section>
 
 <section class="block" id="tools" style="background:rgba(10,107,75,.03)"><div class="container">
@@ -92,7 +92,7 @@
 
 <section class="block" id="itinerary"><div class="container">
   <div class="section-head"><div class="eyebrow">Smart Itinerary Planner</div><h2>Plan Your Perfect Trip</h2><p>Pick a ready-made plan, or build your own and save it to the server.</p></div>
-  <div class="field"><label for="itinSel">Pre-built plan:</label><select id="itinSel"><option value="3">3-Day Essential</option><option value="5">5-Day Family</option><option value="7">7-Day Grand Tour</option></select></div>
+  <div class="field"><label for="itinSel">Pre-built plan:</label><select id="itinSel"><option value="1 Week">1 Week</option><option value="2 Weeks">2 Weeks</option><option value="3 Weeks">3 Weeks</option><option value="1 Month">1 Month (Grand Tour)</option></select></div>
   <div class="itin-days" id="itinDays" style="margin-bottom:34px"></div>
   <h3 style="margin-bottom:14px">🧳 Custom Trip Builder</h3>
   <div class="builder"><div class="pool" id="pool"><h4>Available Spots</h4></div><div class="plan" id="plan"><h4>My Trip <a href="#" id="clearPlan" class="empty-note">Clear</a></h4></div></div>
