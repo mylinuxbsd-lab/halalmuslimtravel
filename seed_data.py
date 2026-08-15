@@ -336,6 +336,10 @@ MALAYSIA_YOUTUBERS = [
     ("Anas Iskander", "Travel vlogs from a Saudi creator documenting trips to Malaysia, Korea, Japan, China and other countries.", "https://www.youtube.com/@ansvlog"),
     ("Telposhow", "Arabic-language channel introducing Malaysian culture, food and travel destinations (including Penang) to Middle Eastern audiences.", "https://www.youtube.com/@telposhow"),
     ("Anthony Rahayel (NoGarlicNoOnions)", "Food and travel content, including coverage of Kuala Lumpur, from a Lebanon-based food and travel creator.", "https://www.youtube.com/@ngno"),
+    ("Malaysia Truly Asia", "Tourism Malaysia's official channel — promotional videos and destination guides covering attractions, festivals and eco-tourism spots nationwide.", "https://www.youtube.com/channel/UCnTJRksbHP4O8JSz00_XRQA"),
+    ("Puri and Sue", "A Malaysian couple's travel and food vlogs covering local destinations, hidden gems and halal eats across the country.", "https://www.youtube.com/channel/UC8fUEZcsNTHMjEFUBl6NTCQ"),
+    ("Ummi Goes Where?", "A Malaysian solo traveler sharing budget-friendly domestic travel guides and lesser-known local destinations.", "https://www.youtube.com/c/ummigoeswhere"),
+    ("Explore With Bolu", "A Malaysia-based creator exploring the country's food, culture, transport and tourist spots from a visitor's perspective.", "https://www.youtube.com/c/explorewithbolu"),
 ]
 
 # name, description, link
