@@ -15,13 +15,19 @@ sudo ./setup-ssl.sh HalalMuslimTravel.com you@email.com   # real Let's Encrypt c
 ```
 
 ## Features
-Mosques & Islamic activities · Halal food · Attractions (Places to Visit, Shopping Malls,
-Theme Parks, For Children, Outdoor Adventures, Beaches & Islands, Night Markets, Day Trips) ·
-Malaysian kids' cartoons · Medical tourism · Accommodation · Transport & apps guide ·
-Live prayer times & Qibla · Interactive map · Search · Cumulative 1-Week/2-Week/3-Week/1-Month
-itineraries · Saveable custom itineraries · Reviews · Enquiry form · Dark mode · 4 languages.
+A hash-routed single-page app (Home / Explore / Plan a Trip / Prayer & Qibla / Map / Travel Info)
+over a unified `/api/places` search-and-filter endpoint spanning mosques, attractions (Places to
+Visit, Shopping Malls, Theme Parks, For Children, Outdoor Adventures, Beaches & Islands, Night
+Markets, Day Trips), halal food, local fruits, healthcare and stays — 13 categories across all 14
+Malaysian states/territories. Real photo thumbnails (Wikipedia, individually verified to resolve
+and to actually match the place before being stored — never a guessed URL). A conversational trip
+planner (1 Day → 1 Month, tuned per travel-party type) that only ever recommends real catalogue
+entries. Saveable favourites and itineraries, reviews, an interactive Leaflet map, a curated list
+of foreign YouTubers covering Malaysia, live prayer times & Qibla, dark mode, 4 languages, and an
+installable offline-capable PWA (manifest + service worker).
 
-Dataset sourced from "Places to visit in Malaysia updated Aug 2026.xlsx".
+Dataset sourced from "Places to visit in Malaysia updated Aug 2026.xlsx", broadened with
+additional states/regions and local fruits.
 
 ## Security hardening applied
 - SQL identifier allow-list in `fetch()`
@@ -31,10 +37,10 @@ Dataset sourced from "Places to visit in Malaysia updated Aug 2026.xlsx".
 
 ## Structure
 ```
-app.py db.py prayer.py seed_data.py   # backend
-templates/ static/                    # frontend
-Dockerfile docker-compose.yml nginx/  # deploy
-deploy.sh setup-ssl.sh run.sh         # scripts
-.github/workflows/deploy.yml          # CI/CD
-SECURITY_AUDIT.md SECURITY_FIXES.md   # security docs
+app.py db.py prayer.py seed_data.py           # backend
+templates/ static/                            # frontend (static/manifest.json + sw.js = PWA)
+Dockerfile docker-compose*.yml nginx/         # deploy (dev = self-signed, prod = shared-host edge router)
+deploy.sh setup-ssl.sh run.sh                 # scripts
+.github/workflows/deploy.yml                  # CI/CD
+SECURITY_AUDIT.md SECURITY_FIXES.md           # security docs
 ```

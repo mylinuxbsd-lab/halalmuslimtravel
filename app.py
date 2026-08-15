@@ -37,7 +37,7 @@ def require_admin(x_api_key: str = Header(default="")):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 # ---- SQL identifier allow-lists (identifiers can't be parameterised) ----
-_ALLOWED_TABLES = {"mosques", "attractions", "food", "cartoons", "medical", "accommodation",
+_ALLOWED_TABLES = {"mosques", "attractions", "food", "fruits", "cartoons", "youtubers", "medical", "accommodation",
                    "transport", "apps", "practical", "reviews", "enquiries"}
 _ALLOWED_ORDER = {"id", "id DESC", "name"}
 
@@ -49,6 +49,99 @@ def fetch(table, order="id"):
     rows = [dict(r) for r in conn.execute(f"SELECT * FROM {table} ORDER BY {order}")]
     conn.close()
     return rows
+
+
+# ---------- unified place browsing ----------
+# One shape across every catalogue table so the front-end can search, filter and
+# paginate all destinations together instead of dumping each table in full.
+_PLACES_UNION = """
+SELECT 'mosque' AS kind, id, name, 'Mosques & Islamic Sites' AS category, '' AS subcategory,
+       description, state, distance, travel_time, photo_url AS website, maps_url,
+       photo_thumb AS thumb, lat, lng FROM mosques
+UNION ALL
+SELECT 'attraction', id, name, category, '', description, state, distance, travel_time,
+       photo_url, maps_url, photo_thumb, lat, lng FROM attractions
+UNION ALL
+SELECT 'food', id, name, 'Food & Dining', '', description, '', '', '',
+       photo_url, '', photo_thumb, NULL, NULL FROM food
+UNION ALL
+SELECT 'fruit', id, name, 'Local Fruits', '', description, '', '', '',
+       photo_url, '', photo_thumb, NULL, NULL FROM fruits
+UNION ALL
+SELECT 'medical', id, name, 'Healthcare', specialties, description, state, distance, travel_time,
+       website, maps_url, NULL, lat, lng FROM medical
+UNION ALL
+SELECT 'stay', id, name, 'Stays', category, description, state, distance, '',
+       website, maps_url, NULL, lat, lng FROM accommodation
+"""
+
+# "12 km" / "1,600 km" -> 12.0 / 1600.0 ; blank distances sort last rather than first.
+_DIST_EXPR = "CAST(REPLACE(distance, ',', '') AS REAL)"
+_SORTS = {
+    "name": "name COLLATE NOCASE ASC",
+    "distance": f"CASE WHEN distance IS NULL OR distance = '' THEN 1 ELSE 0 END, {_DIST_EXPR} ASC, name COLLATE NOCASE",
+    "photo": "CASE WHEN thumb IS NULL OR thumb = '' THEN 1 ELSE 0 END, name COLLATE NOCASE",
+}
+
+
+@app.get("/api/places")
+def places(q: Optional[str] = Query(None, max_length=80),
+           category: Optional[str] = None,
+           state: Optional[str] = None,
+           sort: str = "name",
+           limit: int = Query(24, ge=1, le=100),
+           offset: int = Query(0, ge=0)):
+    if sort not in _SORTS:
+        raise HTTPException(400, "sort must be one of: name, distance, photo")
+    where, params = [], []
+    if q:
+        where.append("(lower(name) LIKE ? OR lower(description) LIKE ? OR lower(state) LIKE ? OR lower(category) LIKE ?)")
+        params += [f"%{q.lower()}%"] * 4
+    if category and category != "All":
+        where.append("category = ?")
+        params.append(category)
+    if state and state != "All":
+        where.append("state = ?")
+        params.append(state)
+    clause = (" WHERE " + " AND ".join(where)) if where else ""
+
+    conn = db.get_conn()
+    total = conn.execute(f"SELECT COUNT(*) FROM ({_PLACES_UNION}){clause}", params).fetchone()[0]
+    rows = conn.execute(
+        f"SELECT * FROM ({_PLACES_UNION}){clause} ORDER BY {_SORTS[sort]} LIMIT ? OFFSET ?",
+        params + [limit, offset]).fetchall()
+    conn.close()
+    return {"total": total, "limit": limit, "offset": offset,
+            "items": [dict(r) for r in rows]}
+
+
+@app.get("/api/places/filters")
+def place_filters():
+    """Categories and states with counts, for building the browse filters."""
+    conn = db.get_conn()
+    cats = conn.execute(
+        f"SELECT category, COUNT(*) n FROM ({_PLACES_UNION}) GROUP BY category ORDER BY category").fetchall()
+    states = conn.execute(
+        f"SELECT state, COUNT(*) n FROM ({_PLACES_UNION}) WHERE state <> '' GROUP BY state ORDER BY state").fetchall()
+    conn.close()
+    return {"categories": [{"name": r["category"], "count": r["n"]} for r in cats],
+            "states": [{"name": r["state"], "count": r["n"]} for r in states]}
+
+
+@app.get("/api/places/{kind}/{pid}")
+def place_detail(kind: str, pid: int):
+    conn = db.get_conn()
+    row = conn.execute(f"SELECT * FROM ({_PLACES_UNION}) WHERE kind = ? AND id = ?", (kind, pid)).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(404, "Place not found.")
+    place = dict(row)
+    reviews = conn.execute(
+        "SELECT author, rating, comment, created_at FROM reviews WHERE place = ? ORDER BY id DESC",
+        (place["name"],)).fetchall()
+    conn.close()
+    place["reviews"] = [dict(r) for r in reviews]
+    return place
 
 
 # ---------- catalogue endpoints ----------
@@ -82,9 +175,19 @@ def food():
     return fetch("food", "name")
 
 
+@app.get("/api/fruits")
+def fruits():
+    return fetch("fruits", "name")
+
+
 @app.get("/api/cartoons")
 def cartoons():
     return fetch("cartoons", "name")
+
+
+@app.get("/api/youtubers")
+def youtubers():
+    return fetch("youtubers", "name")
 
 
 @app.get("/api/medical")
@@ -142,28 +245,6 @@ def cities():
     return sorted(S.CITY_COORDS.keys())
 
 
-# ---------- search ----------
-@app.get("/api/search")
-def search(q: str = Query(..., min_length=1, max_length=80)):
-    ql = f"%{q.lower()}%"
-    conn = db.get_conn()
-    results = []
-    q_tables = [
-        ("mosque", "SELECT name, state FROM mosques WHERE lower(name) LIKE ? OR lower(state) LIKE ?"),
-        ("dish", "SELECT name, description FROM food WHERE lower(name) LIKE ? OR lower(description) LIKE ?"),
-        ("attraction", "SELECT name, category FROM attractions WHERE lower(name) LIKE ? OR lower(category) LIKE ?"),
-        ("hospital", "SELECT name, specialties FROM medical WHERE lower(name) LIKE ? OR lower(specialties) LIKE ?"),
-        ("stay", "SELECT name, category FROM accommodation WHERE lower(name) LIKE ? OR lower(category) LIKE ?"),
-    ]
-    for kind, sql in q_tables:
-        for r in conn.execute(sql, (ql, ql)):
-            d = dict(r)
-            detail = list(d.values())[1] or ""
-            results.append({"type": kind, "name": d["name"], "detail": (detail[:80] + "…") if len(detail) > 80 else detail})
-    conn.close()
-    return {"query": q, "count": len(results), "results": results}
-
-
 # ---------- prebuilt itineraries ----------
 _DURATION_CUTOFF = {"1 Week": 7, "2 Weeks": 14, "3 Weeks": 21, "1 Month": 30}
 
@@ -185,6 +266,194 @@ def prebuilt(duration: str = "1 Week"):
             "why": r["why"], "tips": r["tips"],
         })
     return [{"day": day_no, "items": items} for day_no, items in sorted(days.items())]
+
+
+# ---------- trip-planner assistant ----------
+# Builds a day-by-day plan from the real catalogue. Everything it suggests is a
+# row in the database, so the planner can never invent a place that isn't there.
+_TRIP_DAYS = {"1 Day": 1, "3 Days": 3, "1 Week": 7, "2 Weeks": 14, "3 Weeks": 21, "1 Month": 30}
+
+_REGIONS = {
+    "Kuala Lumpur & Klang Valley": ["Kuala Lumpur", "Selangor", "Putrajaya"],
+    "Melaka & Negeri Sembilan": ["Melaka", "Negeri Sembilan"],
+    "Highlands & Pahang": ["Pahang"],
+    "Northern Peninsula": ["Penang", "Perak", "Kedah", "Perlis"],
+    "Johor": ["Johor"],
+    "East Coast": ["Terengganu", "Kelantan"],
+    "Borneo": ["Sabah", "Sarawak", "Labuan"],
+}
+_LEG_WEIGHT = {"Kuala Lumpur & Klang Valley": 5, "Melaka & Negeri Sembilan": 1,
+               "Highlands & Pahang": 1, "Northern Peninsula": 2,
+               "Johor": 1, "East Coast": 1.5, "Borneo": 2.5}
+
+# per_day = sights per day (excluding the daily food pick); weights bias the ranking.
+_PARTY = {
+    "couple": {"label": "a couple", "per_day": 4, "max_km": 9999,
+               "w": {"Places to Visit": 1.5, "Food & Dining": 1.4, "Beaches & Islands": 1.4,
+                     "Night Markets & Entertainment": 1.3, "Mosques & Islamic Sites": 1.1,
+                     "For Children": .3, "Theme Parks (Outside KL)": .7},
+               "tips": ["Sunset at a rooftop or lakeside mosque is the highlight of most KL evenings.",
+                        "Night markets are at their best after 7pm — go hungry."]},
+    "family_young": {"label": "a family with young children", "per_day": 3, "max_km": 200,
+                     "w": {"For Children": 2.0, "Theme Parks (Outside KL)": 1.5, "Places to Visit": 1.0,
+                           "Food & Dining": 1.2, "Mosques & Islamic Sites": 1.0,
+                           "Outdoor Adventures": .5, "Night Markets & Entertainment": .6},
+                     "tips": ["Plan indoor attractions for 12–4pm — that's the hottest part of the day.",
+                              "Every mall has a surau (prayer room) and baby-changing facilities.",
+                              "Strollers are fine in malls and KLCC park, harder on older heritage streets."]},
+    "family_teens": {"label": "a family with teenagers", "per_day": 4, "max_km": 9999,
+                     "w": {"Theme Parks (Outside KL)": 1.9, "Outdoor Adventures": 1.6,
+                           "Night Markets & Entertainment": 1.4, "Shopping Malls": 1.3,
+                           "Beaches & Islands": 1.3, "Places to Visit": 1.0, "For Children": .5},
+                     "tips": ["Book theme-park tickets online — it's cheaper and skips the queue.",
+                              "Teens usually rate the night markets and street food highest."]},
+    "family_elderly": {"label": "a family with elderly parents", "per_day": 2, "max_km": 120,
+                       "w": {"Mosques & Islamic Sites": 1.9, "Places to Visit": 1.4, "Food & Dining": 1.3,
+                             "Healthcare": 1.1, "Shopping Malls": 1.0,
+                             "Outdoor Adventures": .2, "Theme Parks (Outside KL)": .2,
+                             "For Children": .4, "Beaches & Islands": .7},
+                       "tips": ["Days are deliberately light — two stops, with a long midday rest.",
+                                "Most major mosques and malls are step-free and have wheelchair access.",
+                                "Grab (ride-hailing) door-to-door beats public transport for mobility."]},
+    "solo": {"label": "a solo traveller", "per_day": 4, "max_km": 9999,
+             "w": {"Places to Visit": 1.4, "Food & Dining": 1.3, "Outdoor Adventures": 1.2,
+                   "Mosques & Islamic Sites": 1.2, "For Children": .2},
+             "tips": ["Public transport (MRT/LRT) covers most of KL and is easy to navigate alone."]},
+    "friends": {"label": "a group of friends", "per_day": 4, "max_km": 9999,
+                "w": {"Outdoor Adventures": 1.5, "Night Markets & Entertainment": 1.4,
+                      "Theme Parks (Outside KL)": 1.4, "Beaches & Islands": 1.3, "For Children": .2},
+                "tips": ["Grab splits fares well for groups of 4+; consider a 6-seater for luggage."]},
+}
+
+_INTEREST_CATS = {
+    "mosques": ["Mosques & Islamic Sites"], "food": ["Food & Dining", "Local Fruits"],
+    "nature": ["Outdoor Adventures", "Beaches & Islands"], "shopping": ["Shopping Malls"],
+    "theme_parks": ["Theme Parks (Outside KL)"], "beaches": ["Beaches & Islands"],
+    "heritage": ["Places to Visit"], "kids": ["For Children"],
+    "nightlife": ["Night Markets & Entertainment"],
+}
+
+
+class TripRequest(BaseModel):
+    duration: str = Field("1 Week")
+    party: str = Field("couple")
+    pax: int = Field(2, ge=1, le=30)
+    interests: list[str] = Field(default_factory=list, max_items=12)
+
+
+def _km(text):
+    try:
+        return float(str(text).replace(",", "").split("km")[0].strip())
+    except Exception:
+        return 9999.0
+
+
+def _allocate_legs(days):
+    if days <= 3:
+        names = ["Kuala Lumpur & Klang Valley"]
+    elif days <= 7:
+        names = ["Kuala Lumpur & Klang Valley", "Melaka & Negeri Sembilan", "Highlands & Pahang"]
+    elif days <= 14:
+        names = ["Kuala Lumpur & Klang Valley", "Melaka & Negeri Sembilan",
+                 "Highlands & Pahang", "Northern Peninsula"]
+    elif days <= 21:
+        names = ["Kuala Lumpur & Klang Valley", "Melaka & Negeri Sembilan", "Highlands & Pahang",
+                 "Northern Peninsula", "Johor", "East Coast"]
+    else:
+        names = list(_REGIONS)
+    total = sum(_LEG_WEIGHT[n] for n in names)
+    legs = [[n, max(1, round(days * _LEG_WEIGHT[n] / total))] for n in names]
+    while sum(d for _, d in legs) > days:          # trim from the smallest legs first
+        legs.sort(key=lambda x: -x[1]); legs[-1][1] -= 1
+        legs = [l for l in legs if l[1] > 0]
+    while sum(d for _, d in legs) < days:
+        legs.sort(key=lambda x: -_LEG_WEIGHT[x[0]]); legs[0][1] += 1
+    order = list(names)
+    legs.sort(key=lambda x: order.index(x[0]))
+    return legs
+
+
+@app.post("/api/itinerary/generate")
+def generate_itinerary(req: TripRequest):
+    days_total = _TRIP_DAYS.get(req.duration)
+    if not days_total:
+        raise HTTPException(400, f"duration must be one of: {', '.join(_TRIP_DAYS)}")
+    profile = _PARTY.get(req.party)
+    if not profile:
+        raise HTTPException(400, f"party must be one of: {', '.join(_PARTY)}")
+
+    boost = set()
+    for i in req.interests:
+        boost.update(_INTEREST_CATS.get(i, []))
+
+    conn = db.get_conn()
+    rows = [dict(r) for r in conn.execute(
+        f"SELECT * FROM ({_PLACES_UNION}) WHERE kind IN ('mosque','attraction','food','fruit')")]
+    conn.close()
+
+    edible = {"food", "fruit"}
+
+    def score(p):
+        s = profile["w"].get(p["category"], 1.0)
+        if p["category"] in boost:
+            s *= 1.8
+        if p["thumb"]:
+            s *= 1.15                                    # prefer entries we can illustrate
+        if p["kind"] not in edible and _km(p["distance"]) > profile["max_km"]:
+            s *= 0.15
+        return s
+
+    food = sorted([p for p in rows if p["kind"] in edible], key=score, reverse=True)
+    sights = sorted([p for p in rows if p["kind"] not in edible], key=score, reverse=True)
+
+    by_state = {}
+    for p in sights:
+        by_state.setdefault(p["state"] or "Kuala Lumpur", []).append(p)
+
+    slim = lambda p: {"kind": p["kind"], "id": p["id"], "name": p["name"],
+                      "category": p["category"], "state": p["state"], "distance": p["distance"]}
+
+    out, used, day_no, fi = [], set(), 0, 0
+    for leg_name, leg_days in _allocate_legs(days_total):
+        pool = [p for st in _REGIONS[leg_name] for p in by_state.get(st, [])]
+        pool.sort(key=score, reverse=True)
+        for _ in range(leg_days):
+            day_no += 1
+            picks, mosque_due = [], (day_no % 2 == 1)
+            for p in pool:
+                if len(picks) >= profile["per_day"]:
+                    break
+                key = f"{p['kind']}{p['id']}"
+                if key in used:
+                    continue
+                is_mosque = p["category"] == "Mosques & Islamic Sites"
+                if is_mosque and not mosque_due and any(
+                        x["category"] == "Mosques & Islamic Sites" for x in picks):
+                    continue
+                picks.append(p); used.add(key)
+                if is_mosque:
+                    mosque_due = False
+            if not picks:
+                continue
+            dish = food[fi % len(food)] if food else None
+            fi += 1
+            cats = [p["category"] for p in picks]
+            theme = max(set(cats), key=cats.count)
+            out.append({"day": day_no, "region": leg_name, "theme": theme,
+                        "places": [slim(p) for p in picks],
+                        "food": slim(dish) if dish else None})
+
+    notes = list(profile["tips"])
+    if req.pax >= 5:
+        notes.append(f"For {req.pax} people, a 6-seater Grab or a small van hire is usually "
+                     "cheaper than several separate cars.")
+    if days_total >= 14:
+        notes.append("Domestic flights (AirAsia, Batik, Firefly) make the long legs painless — "
+                     "book them a couple of weeks ahead.")
+    notes.append("Prayer times shift through the year; check the Prayer & Qibla page for your dates.")
+
+    return {"duration": req.duration, "days": days_total, "party": profile["label"],
+            "pax": req.pax, "itinerary": out, "notes": notes}
 
 
 # ---------- saved (custom) itineraries ----------
@@ -284,7 +553,7 @@ def list_reviews():
 def stats():
     conn = db.get_conn()
     def n(t): return conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
-    out = {t: n(t) for t in ["mosques", "attractions", "food", "medical", "accommodation",
+    out = {t: n(t) for t in ["mosques", "attractions", "food", "fruits", "medical", "accommodation",
                              "saved_itineraries", "enquiries", "reviews"]}
     conn.close()
     return out

@@ -1,0 +1,25 @@
+{
+  "name": "Jelajah Halal — Muslim-Friendly Travel Guide to Malaysia",
+  "short_name": "Jelajah Halal",
+  "description": "Mosques, halal food and family attractions across all 14 Malaysian states, with prayer times, Qibla direction and ready-made itineraries.",
+  "start_url": "/?source=pwa",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f7f9f8",
+  "theme_color": "#0a6b4b",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["travel", "lifestyle", "navigation"],
+  "icons": [
+    { "src": "/static/img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/static/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/static/img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Explore places", "url": "/#/explore", "icons": [{ "src": "/static/img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Prayer & Qibla", "url": "/#/prayer", "icons": [{ "src": "/static/img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Plan a trip", "url": "/#/plan", "icons": [{ "src": "/static/img/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
