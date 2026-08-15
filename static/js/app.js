@@ -62,6 +62,7 @@ function placeCard(p) {
   const where = [p.state, p.distance].filter(Boolean).join(" · ");
   card.innerHTML = `
     <div class="pcard-media">
+      ${p.featured ? `<span class="featured-badge">⭐ Featured</span>` : ""}
       <span class="fav-btn ${isFav(p) ? "on" : ""}" data-fav="${favId(p)}" role="button"
             tabindex="0" aria-label="Save ${esc(p.name)}" aria-pressed="${isFav(p)}">★</span>
     </div>
@@ -109,12 +110,18 @@ async function openDrawer(kind, id) {
     ["Distance", p.distance], ["Travel time", p.travel_time],
   ].filter(([, v]) => v);
   const yt = `https://www.youtube.com/results?search_query=${encodeURIComponent(p.name + " Malaysia")}`;
+  const bookingLinks = p.kind === "stay" ? [
+    ["Booking.com", `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(p.name + " " + (p.state || "Malaysia"))}`],
+    ["Agoda", `https://www.agoda.com/search?city=${encodeURIComponent(p.state || "Malaysia")}&q=${encodeURIComponent(p.name)}`],
+    ["Airbnb", `https://www.airbnb.com/s/${encodeURIComponent(p.state || "Malaysia")}/homes?query=${encodeURIComponent(p.name)}`],
+  ] : [];
 
   body.innerHTML = `
     ${p.thumb ? `<img class="drawer-hero" src="${esc(p.thumb)}" alt="">`
               : `<div class="drawer-hero ph">${icon(p.category)}</div>`}
     <div class="drawer-body">
       <span class="tag">${icon(p.category)} ${esc(p.category)}</span>
+      ${p.featured ? `<span class="tag" style="background:var(--gold);color:#2e2205">⭐ Featured</span>` : ""}
       <h2 id="drawerTitle">${esc(p.name)}</h2>
       <p class="desc">${esc(p.description)}</p>
       ${meta.length ? `<ul class="meta-list">${meta.map(([k, v]) =>
@@ -122,6 +129,7 @@ async function openDrawer(kind, id) {
       <div class="drawer-actions">
         ${p.maps_url ? `<a class="btn sm" href="${esc(p.maps_url)}" target="_blank" rel="noopener">📍 Directions</a>` : ""}
         ${p.website ? `<a class="btn ghost sm" href="${esc(p.website)}" target="_blank" rel="noopener">🔗 Official site</a>` : ""}
+        ${bookingLinks.map(([label, url]) => `<a class="btn ghost sm" href="${esc(url)}" target="_blank" rel="noopener">🛏️ ${label}</a>`).join("")}
         <a class="btn ghost sm" href="${yt}" target="_blank" rel="noopener">▶️ Videos</a>
         <button class="btn ghost sm" id="dFav" type="button">${isFav(p) ? "★ Saved" : "☆ Save"}</button>
         <button class="btn ghost sm" id="dRev" type="button">Write a review</button>

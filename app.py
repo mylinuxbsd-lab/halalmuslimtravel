@@ -57,30 +57,33 @@ def fetch(table, order="id"):
 _PLACES_UNION = """
 SELECT 'mosque' AS kind, id, name, 'Mosques & Islamic Sites' AS category, '' AS subcategory,
        description, state, distance, travel_time, photo_url AS website, maps_url,
-       photo_thumb AS thumb, lat, lng FROM mosques
+       photo_thumb AS thumb, lat, lng, 0 AS featured FROM mosques
 UNION ALL
 SELECT 'attraction', id, name, category, '', description, state, distance, travel_time,
-       photo_url, maps_url, photo_thumb, lat, lng FROM attractions
+       photo_url, maps_url, photo_thumb, lat, lng, 0 FROM attractions
 UNION ALL
 SELECT 'food', id, name, 'Food & Dining', '', description, '', '', '',
-       photo_url, '', photo_thumb, NULL, NULL FROM food
+       photo_url, '', photo_thumb, NULL, NULL, 0 FROM food
 UNION ALL
 SELECT 'fruit', id, name, 'Local Fruits', '', description, '', '', '',
-       photo_url, '', photo_thumb, NULL, NULL FROM fruits
+       photo_url, '', photo_thumb, NULL, NULL, 0 FROM fruits
 UNION ALL
 SELECT 'medical', id, name, 'Healthcare', specialties, description, state, distance, travel_time,
-       website, maps_url, NULL, lat, lng FROM medical
+       website, maps_url, NULL, lat, lng, 0 FROM medical
 UNION ALL
 SELECT 'stay', id, name, 'Stays', category, description, state, distance, '',
-       website, maps_url, NULL, lat, lng FROM accommodation
+       website, maps_url, NULL, lat, lng, featured FROM accommodation
 """
 
 # "12 km" / "1,600 km" -> 12.0 / 1600.0 ; blank distances sort last rather than first.
 _DIST_EXPR = "CAST(REPLACE(distance, ',', '') AS REAL)"
+# Featured entries (currently: Tabung Haji Hotel, PNB Perdana Hotel) always float
+# to the top of any sort, within whatever filter is active.
+_FEATURED_FIRST = "CASE WHEN featured = 1 THEN 0 ELSE 1 END, "
 _SORTS = {
-    "name": "name COLLATE NOCASE ASC",
-    "distance": f"CASE WHEN distance IS NULL OR distance = '' THEN 1 ELSE 0 END, {_DIST_EXPR} ASC, name COLLATE NOCASE",
-    "photo": "CASE WHEN thumb IS NULL OR thumb = '' THEN 1 ELSE 0 END, name COLLATE NOCASE",
+    "name": _FEATURED_FIRST + "name COLLATE NOCASE ASC",
+    "distance": _FEATURED_FIRST + f"CASE WHEN distance IS NULL OR distance = '' THEN 1 ELSE 0 END, {_DIST_EXPR} ASC, name COLLATE NOCASE",
+    "photo": _FEATURED_FIRST + "CASE WHEN thumb IS NULL OR thumb = '' THEN 1 ELSE 0 END, name COLLATE NOCASE",
 }
 
 
@@ -197,7 +200,11 @@ def medical():
 
 @app.get("/api/accommodation")
 def accommodation():
-    return fetch("accommodation", "name")
+    conn = db.get_conn()
+    rows = conn.execute(
+        "SELECT * FROM accommodation ORDER BY CASE WHEN featured=1 THEN 0 ELSE 1 END, name COLLATE NOCASE").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 @app.get("/api/transport")
