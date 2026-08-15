@@ -332,7 +332,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 @media(max-width:480px){.chat-panel{right:8px;bottom:8px;width:calc(100vw - 16px)}.chat-launcher{right:14px;bottom:14px}}
 
 footer{background:var(--surface);border-top:1px solid var(--border);padding:44px 0 26px;margin-top:40px}
-.foot-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:32px}
+.foot-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px}
 footer h4{margin-bottom:11px;font-size:.95rem}
 footer .logo{margin-bottom:11px}
 footer a{display:block;color:var(--muted);font-size:.88rem;margin-bottom:7px}
