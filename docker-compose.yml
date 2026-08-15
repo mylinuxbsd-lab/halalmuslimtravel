@@ -10,6 +10,7 @@ services:
     environment:
       - DB_PATH=/app/data/portal.db
       - ADMIN_API_KEY=${ADMIN_API_KEY:-}
+      - GOOGLE_MAPS_KEY=${GOOGLE_MAPS_KEY:-}
     healthcheck:
       test: ["CMD","python","-c","import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/stats').status==200 else 1)"]
       interval: 30s
