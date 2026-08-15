@@ -11,10 +11,12 @@ import os
 import json
 import secrets
 import datetime
+import urllib.parse
+import urllib.request
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query, Header, Depends
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -57,22 +59,23 @@ def fetch(table, order="id"):
 _PLACES_UNION = """
 SELECT 'mosque' AS kind, id, name, 'Mosques & Islamic Sites' AS category, '' AS subcategory,
        description, state, distance, travel_time, photo_url AS website, maps_url,
-       photo_thumb AS thumb, lat, lng, 0 AS featured FROM mosques
+       photo_thumb AS thumb, lat, lng, 0 AS featured,
+       NULL AS photo_ref, NULL AS photo_attrib FROM mosques
 UNION ALL
 SELECT 'attraction', id, name, category, '', description, state, distance, travel_time,
-       photo_url, maps_url, photo_thumb, lat, lng, 0 FROM attractions
+       photo_url, maps_url, photo_thumb, lat, lng, 0, photo_ref, photo_attrib FROM attractions
 UNION ALL
 SELECT 'food', id, name, 'Food & Dining', '', description, '', '', '',
-       photo_url, '', photo_thumb, NULL, NULL, 0 FROM food
+       photo_url, '', photo_thumb, NULL, NULL, 0, NULL, NULL FROM food
 UNION ALL
 SELECT 'fruit', id, name, 'Local Fruits', '', description, '', '', '',
-       photo_url, '', photo_thumb, NULL, NULL, 0 FROM fruits
+       photo_url, '', photo_thumb, NULL, NULL, 0, NULL, NULL FROM fruits
 UNION ALL
 SELECT 'medical', id, name, 'Healthcare', specialties, description, state, distance, travel_time,
-       website, maps_url, NULL, lat, lng, 0 FROM medical
+       website, maps_url, NULL, lat, lng, 0, NULL, NULL FROM medical
 UNION ALL
 SELECT 'stay', id, name, 'Stays', category, description, state, distance, '',
-       website, maps_url, NULL, lat, lng, featured FROM accommodation
+       website, maps_url, NULL, lat, lng, featured, NULL, NULL FROM accommodation
 """
 
 # "12 km" / "1,600 km" -> 12.0 / 1600.0 ; blank distances sort last rather than first.
@@ -129,6 +132,47 @@ def place_filters():
     conn.close()
     return {"categories": [{"name": r["category"], "count": r["n"]} for r in cats],
             "states": [{"name": r["state"], "count": r["n"]} for r in states]}
+
+
+_GOOGLE_MAPS_KEY = os.environ.get("GOOGLE_MAPS_KEY", "").strip()
+_photo_cache: dict[int, tuple[bytes, str]] = {}
+
+
+@app.get("/api/place-photo/{pid}")
+def place_photo(pid: int, w: int = Query(400, ge=80, le=1200)):
+    """Stream a Google Places photo for an attraction.
+
+    The image is fetched server-side and proxied so the API key is never
+    exposed to the browser (a redirect would leak it in the Location header).
+    Google's attribution travels with the place row and is rendered on the card.
+    """
+    if not _GOOGLE_MAPS_KEY:
+        raise HTTPException(503, "Place photos are not configured.")
+
+    cached = _photo_cache.get(pid)
+    if cached:
+        body, ctype = cached
+        return Response(body, media_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
+
+    conn = db.get_conn()
+    row = conn.execute("SELECT photo_ref FROM attractions WHERE id = ?", (pid,)).fetchone()
+    conn.close()
+    if not row or not row["photo_ref"]:
+        raise HTTPException(404, "No photo for this place.")
+
+    url = (f"https://places.googleapis.com/v1/{row['photo_ref']}/media"
+           f"?maxWidthPx={w}&key={urllib.parse.quote(_GOOGLE_MAPS_KEY)}")
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "JelajahHalal/1.0"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            body = r.read()
+            ctype = r.headers.get("Content-Type", "image/jpeg")
+    except Exception:
+        raise HTTPException(502, "Could not fetch the photo.")
+
+    if len(_photo_cache) < 500:
+        _photo_cache[pid] = (body, ctype)
+    return Response(body, media_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/api/places/{kind}/{pid}")

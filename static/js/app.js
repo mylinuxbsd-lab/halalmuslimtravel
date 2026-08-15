@@ -56,6 +56,14 @@ function placeholderMedia(category) {
   d.setAttribute("aria-hidden", "true");
   return d;
 }
+// Verified Wikimedia photo wins; otherwise fall back to the Google Places
+// image, proxied through our API so the key stays server-side.
+function photoSrc(p, w) {
+  if (p.thumb) return p.thumb;
+  if (p.photo_ref && p.kind === "attraction") return `/api/place-photo/${p.id}${w ? `?w=${w}` : ""}`;
+  return null;
+}
+
 function placeCard(p) {
   const card = el("button", "pcard");
   card.type = "button";
@@ -74,11 +82,18 @@ function placeCard(p) {
       ${where ? `<div class="foot">${esc(where)}</div>` : ""}
     </div>`;
   const media = card.querySelector(".pcard-media");
-  if (p.thumb) {
+  const src = photoSrc(p);
+  if (src) {
     const img = new Image();
-    img.src = p.thumb; img.alt = ""; img.loading = "lazy";
+    img.src = src; img.alt = ""; img.loading = "lazy";
     img.onerror = () => img.replaceWith(placeholderMedia(p.category));
     media.prepend(img);
+    // Google requires the photographer credit to be shown alongside the image.
+    if (!p.thumb && p.photo_attrib) {
+      const cr = el("span", "photo-credit");
+      cr.textContent = `📷 ${p.photo_attrib}`;
+      media.appendChild(cr);
+    }
   } else {
     media.prepend(placeholderMedia(p.category));
   }
@@ -110,6 +125,7 @@ async function openDrawer(kind, id) {
     ["Distance", p.distance], ["Travel time", p.travel_time],
   ].filter(([, v]) => v);
   const yt = `https://www.youtube.com/results?search_query=${encodeURIComponent(p.name + " Malaysia")}`;
+  const heroSrc = photoSrc(p, 900);
   const bookingLinks = p.kind === "stay" ? [
     ["Booking.com", `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(p.name + " " + (p.state || "Malaysia"))}`],
     ["Agoda", `https://www.agoda.com/search?city=${encodeURIComponent(p.state || "Malaysia")}&q=${encodeURIComponent(p.name)}`],
@@ -117,8 +133,10 @@ async function openDrawer(kind, id) {
   ] : [];
 
   body.innerHTML = `
-    ${p.thumb ? `<img class="drawer-hero" src="${esc(p.thumb)}" alt="">`
+    ${heroSrc ? `<img class="drawer-hero" src="${esc(heroSrc)}" alt="">`
               : `<div class="drawer-hero ph">${icon(p.category)}</div>`}
+    ${heroSrc && !p.thumb && p.photo_attrib
+        ? `<div class="hero-credit">📷 ${esc(p.photo_attrib)} · via Google</div>` : ""}
     <div class="drawer-body">
       <span class="tag">${icon(p.category)} ${esc(p.category)}</span>
       ${p.featured ? `<span class="tag" style="background:var(--gold);color:#2e2205">⭐ Featured</span>` : ""}
