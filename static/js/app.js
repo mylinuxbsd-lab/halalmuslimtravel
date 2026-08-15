@@ -177,16 +177,30 @@ function router() {
 
 /* ─────────────── home ─────────────── */
 async function initHome() {
+  let filters = null;
+  try { filters = await api("/api/places/filters"); } catch {}
+
   try {
     const s = await api("/api/stats");
-    $("#heroStats").innerHTML = [
-      [s.mosques, "Mosques"], [s.attractions, "Attractions"],
-      [s.food, "Halal dishes"], [s.accommodation + s.medical, "Stays & clinics"],
-    ].map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join("");
+    const catCount = (name) => filters?.categories.find(c => c.name === name)?.count ?? 0;
+    const tiles = [
+      [s.mosques, "Mosques", "Mosques & Islamic Sites"],
+      [s.attractions, "Attractions", null],
+      [s.food, "Halal dishes", "Food & Dining"],
+      [catCount("Shopping Malls"), "Shopping malls", "Shopping Malls"],
+      [catCount("For Children"), "For children", "For Children"],
+      [catCount("Theme Parks (Outside KL)"), "Theme parks", "Theme Parks (Outside KL)"],
+      [catCount("Healthcare"), "Medical tourism", "Healthcare"],
+      [catCount("Outdoor Adventures"), "Adventures", "Outdoor Adventures"],
+    ];
+    $("#heroStats").innerHTML = tiles.map(([n, l, cat]) => {
+      const href = cat ? `#/explore?category=${encodeURIComponent(cat)}` : "#/explore";
+      return `<a href="${href}"><b>${n}</b><span>${esc(l)}</span></a>`;
+    }).join("");
   } catch {}
 
   try {
-    const f = await api("/api/places/filters");
+    const f = filters || await api("/api/places/filters");
     $("#catGrid").innerHTML = f.categories.map(c => `
       <a class="cat-tile" href="#/explore?category=${encodeURIComponent(c.name)}">
         <div class="ico">${icon(c.name)}</div><b>${esc(c.name)}</b><span>${c.count} place${c.count === 1 ? "" : "s"}</span>
