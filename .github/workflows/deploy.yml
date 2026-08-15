@@ -24,6 +24,8 @@ jobs:
             --exclude 'nginx/certs'
             --exclude '.git'
             --exclude '__pycache__'
+            --exclude 'portal.db'
+            --exclude '.claude'
           path: ./
           remote_path: /opt/jelajah/
           remote_host: ${{ secrets.SSH_HOST }}
