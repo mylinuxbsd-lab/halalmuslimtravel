@@ -7,54 +7,73 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Dependency vulnerability scan
         run: pip install pip-audit && pip-audit -r requirements.txt || true
 
-      # --delete is destructive, so everything that lives only on the server
-      # must be excluded here: the SQLite database, the TLS certs, the .env
-      # holding ADMIN_API_KEY/GOOGLE_MAPS_KEY, and the database backups.
+      # SSH is set up by hand rather than via a marketplace action. GitHub's
+      # secret store strips the trailing newline from multi-line values, and
+      # OpenSSH rejects a key without one ("error in libcrypto") -- printf
+      # restores it. Doing it here also drops two third-party actions from the
+      # supply chain and makes failures readable.
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Fail loudly here rather than deep inside rsync.
+          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null \
+            || { echo "::error::SSH_KEY is not a valid private key. Re-copy the whole file including the BEGIN/END lines."; exit 1; }
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          echo "ssh key loaded, host key pinned"
+
       - name: Copy files to server
-        uses: burnett01/rsync-deployments@7.0.1
-        with:
-          switches: >-
-            -avzr --delete
-            --exclude 'data'
-            --exclude 'backups'
-            --exclude '.env*'
-            --exclude 'nginx/certs'
-            --exclude '.git'
-            --exclude '__pycache__'
-            --exclude 'portal.db'
-            --exclude '.claude'
-          path: ./
-          remote_path: /opt/jelajah/
-          remote_host: ${{ secrets.SSH_HOST }}
-          remote_user: ${{ secrets.SSH_USER }}
-          remote_port: ${{ secrets.SSH_PORT }}
-          remote_key: ${{ secrets.SSH_KEY }}
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          set -euo pipefail
+          # --delete is destructive: everything that exists only on the server
+          # (database, backups, .env secrets, TLS certs) must be excluded.
+          rsync -avzr --delete \
+            --exclude 'data' \
+            --exclude 'backups' \
+            --exclude '.env*' \
+            --exclude 'nginx/certs' \
+            --exclude '.git' \
+            --exclude '__pycache__' \
+            --exclude 'portal.db' \
+            --exclude '.claude' \
+            -e "ssh -i ~/.ssh/deploy_key -p ${SSH_PORT:-22}" \
+            ./ "$SSH_USER@$SSH_HOST:/opt/jelajah/"
 
       - name: Rebuild on server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          # The prod override supplies the TLS mounts, the shared edge network
-          # and the restart policy -- without it the base compose starts a
-          # different, unrouted stack.
-          script: |
-            set -e
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -p "${SSH_PORT:-22}" "$SSH_USER@$SSH_HOST" bash -euo pipefail <<'REMOTE'
             cd /opt/jelajah
             cp data/portal.db "backups/portal.db.ci-$(date +%Y%m%d-%H%M%S)" 2>/dev/null || true
+            # The prod override carries the TLS mounts, the shared edge network
+            # and the restart policy; without it this starts an unrouted stack.
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
             docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+          REMOTE
 
       - name: Smoke test
         run: |
           for i in $(seq 1 12); do
             code=$(curl -4 -s -o /dev/null -w '%{http_code}' -m 15 https://halalmuslimtravel.com/api/stats || true)
-            [ "$code" = "200" ] && echo "site healthy (200)" && exit 0
+            if [ "$code" = "200" ]; then echo "site healthy (200)"; exit 0; fi
             echo "attempt $i: got '$code', retrying..."; sleep 10
           done
-          echo "site did not return 200 after deploy"; exit 1
+          echo "::error::site did not return 200 after deploy"; exit 1
