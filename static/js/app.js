@@ -60,7 +60,8 @@ function placeholderMedia(category) {
 // image, proxied through our API so the key stays server-side.
 function photoSrc(p, w) {
   if (p.thumb) return p.thumb;
-  if (p.photo_ref && p.kind === "attraction") return `/api/place-photo/${p.id}${w ? `?w=${w}` : ""}`;
+  if (p.photo_ref && (p.kind === "attraction" || p.kind === "mosque"))
+    return `/api/place-photo/${p.kind}/${p.id}${w ? `?w=${w}` : ""}`;
   return null;
 }
 

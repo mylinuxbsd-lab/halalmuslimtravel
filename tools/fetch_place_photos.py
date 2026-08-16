@@ -23,7 +23,7 @@ landmark inside it). Anything else is left for a human -- printed with its
 distance and reason rather than silently accepted or silently dropped.
 
 Usage:
-    GOOGLE_MAPS_KEY=... python3 tools/fetch_place_photos.py [--limit N] [--dry-run]
+    GOOGLE_MAPS_KEY=... python3 tools/fetch_place_photos.py [--table attractions|mosques] [--limit N] [--dry-run]
 
 The key needs the "Places API (New)" enabled, and must NOT be restricted to
 an HTTP referrer (this runs server-side -- use an IP restriction instead).
@@ -141,25 +141,30 @@ def validate(our_name, our_lat, our_lng, place):
     return (False, f"{dist:.1f}km with no shared name-word", dist)
 
 
+TABLES = ("attractions", "mosques")
+
+
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--table", choices=TABLES, default="attractions")
     ap.add_argument("--limit", type=int, default=0, help="stop after N lookups")
     ap.add_argument("--dry-run", action="store_true", help="don't write to the DB")
     args = ap.parse_args()
+    table = args.table
 
     if not API_KEY:
         sys.exit("GOOGLE_MAPS_KEY is not set. Export it and re-run.")
 
     conn = db.get_conn()
     rows = conn.execute(
-        "SELECT id, name, lat, lng FROM attractions "
+        f"SELECT id, name, lat, lng FROM {table} "
         "WHERE (photo_thumb IS NULL OR photo_thumb = '') "
         "  AND (photo_ref IS NULL OR photo_ref = '') "
         "ORDER BY id"
     ).fetchall()
 
     todo = rows[: args.limit] if args.limit else rows
-    print(f"{len(rows)} attractions without a photo; processing {len(todo)}\n")
+    print(f"{len(rows)} {table} without a photo; processing {len(todo)}\n")
 
     filled = needs_review = no_photo = failed = 0
     for i, r in enumerate(todo, 1):
@@ -188,7 +193,7 @@ def main():
 
         if not args.dry_run:
             conn.execute(
-                "UPDATE attractions SET photo_ref = ?, photo_attrib = ? WHERE id = ?",
+                f"UPDATE {table} SET photo_ref = ?, photo_attrib = ? WHERE id = ?",
                 (ref, attrib or "", r["id"]),
             )
             conn.commit()

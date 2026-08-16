@@ -20,7 +20,7 @@ def init_db(force=False):
     conn = get_conn()
     c = conn.cursor()
     c.executescript("""
-    CREATE TABLE IF NOT EXISTS mosques(id INTEGER PRIMARY KEY, name TEXT, description TEXT, photo_url TEXT, maps_url TEXT, state TEXT, distance TEXT, travel_time TEXT, lat REAL, lng REAL, photo_thumb TEXT);
+    CREATE TABLE IF NOT EXISTS mosques(id INTEGER PRIMARY KEY, name TEXT, description TEXT, photo_url TEXT, maps_url TEXT, state TEXT, distance TEXT, travel_time TEXT, lat REAL, lng REAL, photo_thumb TEXT, photo_ref TEXT, photo_attrib TEXT);
     CREATE TABLE IF NOT EXISTS attractions(id INTEGER PRIMARY KEY, category TEXT, name TEXT, description TEXT, photo_url TEXT, maps_url TEXT, state TEXT, distance TEXT, travel_time TEXT, lat REAL, lng REAL, photo_thumb TEXT, photo_ref TEXT, photo_attrib TEXT);
     CREATE TABLE IF NOT EXISTS food(id INTEGER PRIMARY KEY, name TEXT, description TEXT, photo_url TEXT, photo_thumb TEXT);
     CREATE TABLE IF NOT EXISTS fruits(id INTEGER PRIMARY KEY, name TEXT, description TEXT, photo_url TEXT, photo_thumb TEXT);

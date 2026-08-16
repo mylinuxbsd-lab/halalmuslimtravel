@@ -60,7 +60,7 @@ _PLACES_UNION = """
 SELECT 'mosque' AS kind, id, name, 'Mosques & Islamic Sites' AS category, '' AS subcategory,
        description, state, distance, travel_time, photo_url AS website, maps_url,
        photo_thumb AS thumb, lat, lng, 0 AS featured,
-       NULL AS photo_ref, NULL AS photo_attrib FROM mosques
+       photo_ref, photo_attrib FROM mosques
 UNION ALL
 SELECT 'attraction', id, name, category, '', description, state, distance, travel_time,
        photo_url, maps_url, photo_thumb, lat, lng, 0, photo_ref, photo_attrib FROM attractions
@@ -135,27 +135,36 @@ def place_filters():
 
 
 _GOOGLE_MAPS_KEY = os.environ.get("GOOGLE_MAPS_KEY", "").strip()
-_photo_cache: dict[int, tuple[bytes, str]] = {}
+_photo_cache: dict[tuple[str, int], tuple[bytes, str]] = {}
+# Tables that carry photo_ref/photo_attrib columns, keyed by the "kind" the
+# frontend already sends for each place. Attraction and mosque ids overlap
+# (each table has its own autoincrement sequence), so the route must be
+# scoped by kind or two unrelated places can collide on the same photo.
+_PHOTO_TABLES = {"attraction": "attractions", "mosque": "mosques"}
 
 
-@app.get("/api/place-photo/{pid}")
-def place_photo(pid: int, w: int = Query(400, ge=80, le=1200)):
-    """Stream a Google Places photo for an attraction.
+@app.get("/api/place-photo/{kind}/{pid}")
+def place_photo(kind: str, pid: int, w: int = Query(400, ge=80, le=1200)):
+    """Stream a Google Places photo for an attraction or mosque.
 
     The image is fetched server-side and proxied so the API key is never
     exposed to the browser (a redirect would leak it in the Location header).
     Google's attribution travels with the place row and is rendered on the card.
     """
+    table = _PHOTO_TABLES.get(kind)
+    if not table:
+        raise HTTPException(404, "Unknown place kind.")
     if not _GOOGLE_MAPS_KEY:
         raise HTTPException(503, "Place photos are not configured.")
 
-    cached = _photo_cache.get(pid)
+    cache_key = (kind, pid)
+    cached = _photo_cache.get(cache_key)
     if cached:
         body, ctype = cached
         return Response(body, media_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
 
     conn = db.get_conn()
-    row = conn.execute("SELECT photo_ref FROM attractions WHERE id = ?", (pid,)).fetchone()
+    row = conn.execute(f"SELECT photo_ref FROM {table} WHERE id = ?", (pid,)).fetchone()
     conn.close()
     if not row or not row["photo_ref"]:
         raise HTTPException(404, "No photo for this place.")
@@ -171,7 +180,7 @@ def place_photo(pid: int, w: int = Query(400, ge=80, le=1200)):
         raise HTTPException(502, "Could not fetch the photo.")
 
     if len(_photo_cache) < 500:
-        _photo_cache[pid] = (body, ctype)
+        _photo_cache[cache_key] = (body, ctype)
     return Response(body, media_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
 
 
