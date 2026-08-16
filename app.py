@@ -614,7 +614,7 @@ def stats():
     conn = db.get_conn()
     def n(t): return conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
     out = {t: n(t) for t in ["mosques", "attractions", "food", "fruits", "medical", "accommodation",
-                             "saved_itineraries", "enquiries", "reviews"]}
+                             "cartoons", "youtubers", "saved_itineraries", "enquiries", "reviews"]}
     conn.close()
     return out
 

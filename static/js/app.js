@@ -189,9 +189,20 @@ function router() {
   // "plan" mixes one-time wiring (initPlan, cached below) with state that can
   // change on other routes (favourites) — re-render that part on every visit.
   if (route === "plan" && loaded.plan) { renderFavs(); renderPlan(); return; }
-  if (loaded[route]) return;
-  loaded[route] = true;
-  ({ home: initHome, plan: initPlan, prayer: initPrayer, map: initMap, info: initInfo }[route] || (() => {}))();
+
+  const firstVisit = !loaded[route];
+  if (firstVisit) {
+    loaded[route] = true;
+    ({ home: initHome, plan: initPlan, prayer: initPrayer, map: initMap, info: initInfo }[route] || (() => {}))();
+  }
+  // "info" holds its data-loaded tabs (essentials/transport/apps/kids/vloggers)
+  // in one page — a hero-stat tile linking to a specific tab needs to select it
+  // on every visit, not just the first. On first visit this must run AFTER
+  // initInfo(), since that's what wires the tab buttons' click handlers.
+  if (route === "info") {
+    const tab = params.get("tab");
+    if (tab) $(`#view-info .tab[data-tab="${tab}"]`)?.click();
+  }
 }
 
 /* ─────────────── home ─────────────── */
@@ -202,20 +213,23 @@ async function initHome() {
   try {
     const s = await api("/api/stats");
     const catCount = (name) => filters?.categories.find(c => c.name === name)?.count ?? 0;
+    const explore = (cat) => `#/explore?category=${encodeURIComponent(cat)}`;
     const tiles = [
-      [s.mosques, "Mosques", "Mosques & Islamic Sites"],
-      [s.attractions, "Attractions", null],
-      [s.food, "Halal dishes", "Food & Dining"],
-      [catCount("Shopping Malls"), "Shopping malls", "Shopping Malls"],
-      [catCount("For Children"), "For children", "For Children"],
-      [catCount("Theme Parks (Outside KL)"), "Theme parks", "Theme Parks (Outside KL)"],
-      [catCount("Healthcare"), "Medical tourism", "Healthcare"],
-      [catCount("Outdoor Adventures"), "Adventures", "Outdoor Adventures"],
+      [s.mosques, "Mosques", explore("Mosques & Islamic Sites")],
+      [s.attractions, "Attractions", "#/explore"],
+      [s.food, "Halal dishes", explore("Food & Dining")],
+      [catCount("Shopping Malls"), "Shopping malls", explore("Shopping Malls")],
+      [catCount("For Children"), "For children", explore("For Children")],
+      [catCount("Theme Parks (Outside KL)"), "Theme parks", explore("Theme Parks (Outside KL)")],
+      [catCount("Healthcare"), "Medical tourism", explore("Healthcare")],
+      [catCount("Outdoor Adventures"), "Adventures", explore("Outdoor Adventures")],
+      [catCount("Beaches & Islands"), "Beaches & islands", explore("Beaches & Islands")],
+      [catCount("Local Fruits"), "Local fruits", explore("Local Fruits")],
+      [s.cartoons, "Cartoons", "#/info?tab=kids"],
+      [s.youtubers, "YouTubers", "#/info?tab=youtubers"],
     ];
-    $("#heroStats").innerHTML = tiles.map(([n, l, cat]) => {
-      const href = cat ? `#/explore?category=${encodeURIComponent(cat)}` : "#/explore";
-      return `<a href="${href}"><b>${n}</b><span>${esc(l)}</span></a>`;
-    }).join("");
+    $("#heroStats").innerHTML = tiles.map(([n, l, href]) =>
+      `<a href="${href}"><b>${n}</b><span>${esc(l)}</span></a>`).join("");
   } catch {}
 
   try {
