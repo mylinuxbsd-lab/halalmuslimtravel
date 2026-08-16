@@ -18,17 +18,30 @@ jobs:
       # supply chain and makes failures readable.
       - name: Set up SSH
         env:
+          SSH_KEY_B64: ${{ secrets.SSH_KEY_B64 }}
           SSH_KEY: ${{ secrets.SSH_KEY }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          # Prefer SSH_KEY_B64: a single-line value survives the secret store
+          # intact, whereas a pasted multi-line key loses its trailing newline
+          # (and often picks up stray indentation), which OpenSSH rejects with
+          # "error in libcrypto".
+          if [ -n "${SSH_KEY_B64:-}" ]; then
+            printf '%s' "$SSH_KEY_B64" | tr -d '[:space:]' | base64 -d > ~/.ssh/deploy_key
+            echo "using SSH_KEY_B64"
+          elif [ -n "${SSH_KEY:-}" ]; then
+            printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+            echo "using SSH_KEY (raw)"
+          else
+            echo "::error::Neither SSH_KEY_B64 nor SSH_KEY is set."; exit 1
+          fi
           chmod 600 ~/.ssh/deploy_key
-          # Fail loudly here rather than deep inside rsync.
           ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null \
-            || { echo "::error::SSH_KEY is not a valid private key. Re-copy the whole file including the BEGIN/END lines."; exit 1; }
+            || { echo "::error::The deploy key is not a valid private key. Set SSH_KEY_B64 to the output of: base64 -w0 ~/.ssh/jelajah_ci_deploy2"; exit 1; }
+          echo "key fingerprint: $(ssh-keygen -lf ~/.ssh/deploy_key | awk '{print $2}')"
           ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
           echo "ssh key loaded, host key pinned"
 
