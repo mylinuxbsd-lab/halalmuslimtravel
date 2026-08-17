@@ -168,6 +168,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* ---------- panels / tabs ---------- */
 .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
   padding:20px;box-shadow:var(--shadow-sm)}
+.panel-thumb{width:calc(100% + 40px);margin:-20px -20px 14px;display:block;
+  height:130px;object-fit:contain;background:var(--surface-2);border-radius:var(--r) var(--r) 0 0}
 .panel h3{font-size:1.05rem;margin-bottom:12px}
 .panel h4{font-size:.95rem;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:22px;overflow-x:auto}

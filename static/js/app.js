@@ -565,7 +565,9 @@ async function initInfo() {
   try {
     const cs = await api("/api/cartoons");
     $("#cartoonGrid").innerHTML = cs.map(c => `
-      <div class="panel"><h4>${esc(c.name)}</h4>
+      <div class="panel">
+        ${c.photo_thumb ? `<img class="panel-thumb" src="${esc(c.photo_thumb)}" alt="" loading="lazy">` : ""}
+        <h4>${esc(c.name)}</h4>
         <p class="sm">${esc(clean(c.description))}</p>
         ${c.link ? `<a class="sm" href="${esc(c.link)}" target="_blank" rel="noopener">▶️ Watch ↗</a>` : ""}
       </div>`).join("");

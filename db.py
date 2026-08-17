@@ -24,7 +24,7 @@ def init_db(force=False):
     CREATE TABLE IF NOT EXISTS attractions(id INTEGER PRIMARY KEY, category TEXT, name TEXT, description TEXT, photo_url TEXT, maps_url TEXT, state TEXT, distance TEXT, travel_time TEXT, lat REAL, lng REAL, photo_thumb TEXT, photo_ref TEXT, photo_attrib TEXT);
     CREATE TABLE IF NOT EXISTS food(id INTEGER PRIMARY KEY, name TEXT, description TEXT, photo_url TEXT, photo_thumb TEXT);
     CREATE TABLE IF NOT EXISTS fruits(id INTEGER PRIMARY KEY, name TEXT, description TEXT, photo_url TEXT, photo_thumb TEXT);
-    CREATE TABLE IF NOT EXISTS cartoons(id INTEGER PRIMARY KEY, name TEXT, description TEXT, link TEXT);
+    CREATE TABLE IF NOT EXISTS cartoons(id INTEGER PRIMARY KEY, name TEXT, description TEXT, link TEXT, photo_thumb TEXT);
     CREATE TABLE IF NOT EXISTS youtubers(id INTEGER PRIMARY KEY, name TEXT, description TEXT, link TEXT);
     CREATE TABLE IF NOT EXISTS medical(id INTEGER PRIMARY KEY, name TEXT, description TEXT, specialties TEXT, website TEXT, maps_url TEXT, state TEXT, distance TEXT, travel_time TEXT, lat REAL, lng REAL);
     CREATE TABLE IF NOT EXISTS accommodation(id INTEGER PRIMARY KEY, name TEXT, category TEXT, description TEXT, website TEXT, maps_url TEXT, state TEXT, distance TEXT, lat REAL, lng REAL, featured INTEGER DEFAULT 0);
@@ -42,7 +42,7 @@ def init_db(force=False):
         c.executemany("INSERT INTO attractions(category,name,description,photo_url,maps_url,state,distance,travel_time,lat,lng,photo_thumb) VALUES(?,?,?,?,?,?,?,?,?,?,?)", S.ATTRACTIONS)
         c.executemany("INSERT INTO food(name,description,photo_url,photo_thumb) VALUES(?,?,?,?)", S.FOOD)
         c.executemany("INSERT INTO fruits(name,description,photo_url,photo_thumb) VALUES(?,?,?,?)", S.FRUITS)
-        c.executemany("INSERT INTO cartoons(name,description,link) VALUES(?,?,?)", S.CARTOONS)
+        c.executemany("INSERT INTO cartoons(name,description,link,photo_thumb) VALUES(?,?,?,?)", S.CARTOONS)
         c.executemany("INSERT INTO youtubers(name,description,link) VALUES(?,?,?)", S.MALAYSIA_YOUTUBERS)
         c.executemany("INSERT INTO medical(name,description,specialties,website,maps_url,state,distance,travel_time,lat,lng) VALUES(?,?,?,?,?,?,?,?,?,?)", S.MEDICAL)
         c.executemany("INSERT INTO accommodation(name,category,description,website,maps_url,state,distance,lat,lng,featured) VALUES(?,?,?,?,?,?,?,?,?,?)", S.ACCOMMODATION)
